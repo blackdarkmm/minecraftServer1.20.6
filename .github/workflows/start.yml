@@ -84,8 +84,23 @@ jobs:
         env:
           ZT_NETWORK_ID: ${{ secrets.ZEROTIER_NETWORK_ID }}
         run: |
-          sudo zerotier-cli join $ZT_NETWORK_ID
-          echo "等待 ZeroTier 加入網路..."
+          echo "✅ 檢查 ZeroTier 服務是否啟動..."
+          for i in {1..10}; do
+            if sudo zerotier-cli info &>/dev/null; then
+              echo "✅ ZeroTier 服務已啟動"
+              break
+            fi
+            echo "⏳ 等待 ZeroTier 服務啟動... ($i/10)"
+            sleep 2
+          done
+
+          echo "🚀 嘗試加入 ZeroTier 網路：$ZT_NETWORK_ID"
+          sudo zerotier-cli join $ZT_NETWORK_ID || {
+            echo "❌ 加入 ZeroTier 網路失敗"
+            exit 1
+          }
+
+          echo "🕓 等待 ZeroTier 成功連線..."
           for i in {1..20}; do
             STATUS=$(sudo zerotier-cli listnetworks | grep $ZT_NETWORK_ID | awk '{print $5}')
             echo "目前狀態：$STATUS"
