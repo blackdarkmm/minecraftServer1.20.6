@@ -97,7 +97,7 @@ jobs:
 
       - name: 啟動 Fabric Server（使用 screen）
         run: |
-          screen -dmS minecraft java -Xmx5G -Xms5G -jar fabric-server-launch.jar nogui
+          screen -dmS minecraft java -Xmx6G -Xms6G -jar fabric-server-launch.jar nogui
           sleep 30
 
       - name: Minecraft Server 運行中（等待）
