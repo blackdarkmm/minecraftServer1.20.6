@@ -120,6 +120,23 @@ jobs:
           sudo cat /var/lib/zerotier-one/identity.secret
           echo "=========== END identity.secret ==========="
 
+      - name: 安裝 SSH server
+        run: sudo apt-get update && sudo apt-get install -y openssh-server
+
+      - name: 設定 SSH server
+        run: |
+          sudo mkdir -p /var/run/sshd
+          echo 'PermitRootLogin no' | sudo tee -a /etc/ssh/sshd_config
+          echo 'PasswordAuthentication no' | sudo tee -a /etc/ssh/sshd_config
+          # 允許你的用戶登入
+          sudo useradd -m minecraft
+          sudo mkdir -p /home/minecraft/.ssh
+          echo "${{ secrets.SSH_PUBLIC_KEY }}" | sudo tee /home/minecraft/.ssh/authorized_keys
+          sudo chown -R minecraft:minecraft /home/minecraft/.ssh
+          sudo chmod 700 /home/minecraft/.ssh
+          sudo chmod 600 /home/minecraft/.ssh/authorized_keys
+          sudo service ssh start
+
       - name: 啟動 Fabric Server（使用 screen）
         run: |
           screen -dmS minecraft java -Xmx6G -Xms6G -jar fabric-server-launch.jar nogui
