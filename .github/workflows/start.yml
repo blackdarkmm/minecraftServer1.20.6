@@ -9,13 +9,15 @@ jobs:
   minecraft:
     runs-on: ubuntu-latest
 
-    env:
-        RCON_PASSWORD: ${{ secrets.RCON_PASSWORD }}
-        RCON_PORT: ${{ secrets.RCON_PORT }}
-
     steps:
       - name: 檢出 repo 檔案
         uses: actions/checkout@v4
+
+      - name: 替換 server.properties 中的 RCON 設定
+        run: |
+          sed -i "s|rcon.password=.*|rcon.password=${RCON_PASSWORD}|" server.properties
+          sed -i "s|rcon.port=.*|rcon.port=${RCON_PORT}|" server.properties
+
 
       - name: 安裝 Java 21
         uses: actions/setup-java@v4
