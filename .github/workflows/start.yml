@@ -110,16 +110,31 @@ jobs:
           screen -dmS minecraft java -Xmx6G -Xms6G -jar fabric-server-launch.jar nogui
           sleep 30
 
-      - name: Minecraft Server 運行中（等待）
+      - name: Minecraft Server 運行中（最多 5 小時或手動關閉）
         run: |
-          echo "伺服器將保持運行 5 小時..."
-          sleep 18000
+          echo "伺服器啟動成功，最多運行 5 小時。"
+          start_time=$(date +%s)
+          timeout=$((5 * 60 * 60)) # 5 小時
+          while screen -list | grep -q "minecraft"; do
+            now=$(date +%s)
+            elapsed=$((now - start_time))
+            if [ $elapsed -ge $timeout ]; then
+              echo "已達 5 小時，準備自動關閉伺服器..."
+              break
+            fi
+            sleep 10
+          done
+          echo "伺服器已關閉或到時，繼續下一步..."
 
-      - name: 優雅關閉 Minecraft 伺服器
+      - name: 優雅關閉 Minecraft 伺服器（如果還活著）
         run: |
-          screen -S minecraft -p 0 -X stuff "stop$(printf \\r)"
-          sleep 15
-
+          if screen -list | grep -q "minecraft"; then
+            echo "伺服器仍在運行，執行 stop 指令..."
+            screen -S minecraft -p 0 -X stuff "stop$(printf \\r)"
+            sleep 15
+          else
+            echo "伺服器已關閉，無需再次 stop。"
+          fi
       - name: 壓縮世界
         run: zip -r world.zip world
 
