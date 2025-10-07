@@ -9,6 +9,10 @@ jobs:
   minecraft:
     runs-on: ubuntu-latest
 
+    env:
+        RCON_PASSWORD: ${{ secrets.RCON_PASSWORD }}
+        RCON_PORT: ${{ secrets.RCON_PORT }}
+
     steps:
       - name: 檢出 repo 檔案
         uses: actions/checkout@v4
