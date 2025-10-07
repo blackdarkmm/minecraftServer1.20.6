@@ -161,5 +161,5 @@ jobs:
       - name: 觸發下一次執行
         uses: peter-evans/repository-dispatch@v2
         with:
-          token: ${{ secrets.GITHUB_TOKEN }}
+          token: ${{ secrets.REPO_DISPATCH_TOKEN }}
           event-type: trigger-again
