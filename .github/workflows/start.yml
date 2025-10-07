@@ -176,5 +176,6 @@ jobs:
       - name: 觸發下一次執行
         uses: peter-evans/repository-dispatch@v2
         with:
-          token: ${{ secrets.REPO_DISPATCH_TOKEN }}
-          event-type: trigger-again
+          token: ${{ secrets.GITHUB_TOKEN }}       # ✅ 內建 token，有觸發本 repo 的權限
+          repository: ${{ github.repository }}      # ✅ 自己的 repo
+          event-type: Fabric Server - 雲端世界備份 (ZeroTier VPN)
