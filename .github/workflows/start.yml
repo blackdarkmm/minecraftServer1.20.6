@@ -46,27 +46,27 @@ jobs:
         run: |
           curl -s https://install.zerotier.com | sudo bash
 
-      - name: 匯入 ZeroTier 身份檔案（保證固定 IP）
-        run: |
-          sudo systemctl stop zerotier-one
+      #- name: 匯入 ZeroTier 身份檔案（保證固定 IP）
+        #run: |
+          #sudo systemctl stop zerotier-one
 
-          echo "${{ secrets.ZT_IDENTITY_SECRET }}" | sudo tee /var/lib/zerotier-one/identity.secret > /dev/null
-          sudo chmod 600 /var/lib/zerotier-one/identity.secret
+          #echo "${{ secrets.ZT_IDENTITY_SECRET }}" | sudo tee /var/lib/zerotier-one/identity.secret > /dev/null
+          #sudo chmod 600 /var/lib/zerotier-one/identity.secret
 
-          sudo systemctl start zerotier-one
+          #sudo systemctl start zerotier-one
 
-          echo "等待 identity.public 生成..."
-          for i in {1..10}; do
-            if [ -f /var/lib/zerotier-one/identity.public ]; then
-              echo "✅ identity.public 已生成"
-              break
-            fi
-            echo "⏳ identity.public 尚未出現，等待 1 秒..."
-            sleep 1
-          done
+          #echo "等待 identity.public 生成..."
+          #for i in {1..10}; do
+            #if [ -f /var/lib/zerotier-one/identity.public ]; then
+              #echo "✅ identity.public 已生成"
+              #break
+            #fi
+            #echo "⏳ identity.public 尚未出現，等待 1 秒..."
+            #sleep 1
+          #done
 
-          echo "目前身份："
-          sudo cat /var/lib/zerotier-one/identity.public || echo "⚠️ 無法讀取身份"
+          #echo "目前身份："
+          #sudo cat /var/lib/zerotier-one/identity.public || echo "⚠️ 無法讀取身份"
 
       - name: 加入 ZeroTier 網路
         env:
