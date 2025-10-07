@@ -1,0 +1,16 @@
+name: 🔁 自己觸發自己
+
+on:
+  workflow_dispatch:  # 手動觸發第一次
+
+jobs:
+  dispatch:
+    runs-on: ubuntu-latest
+    steps:
+      - name: 📤 用 GITHUB_TOKEN 觸發自己
+        uses: peter-evans/repository-dispatch@v2
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}       # ✅ 內建 token，有觸發本 repo 的權限
+          repository: ${{ github.repository }}      # ✅ 自己的 repo
+          event-type: trigger-again                 # 你可以叫這個事件任何名字
+          sleep: 10
