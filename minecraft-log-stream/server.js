@@ -26,6 +26,10 @@ app.get('/logs/stream', (req, res) => {
   });
 });
 
+app.get('/health', (req, res) => {
+  res.status(200).send('OK');
+});
+
 function sendToClients(data) {
   clients.forEach(res => res.write(`data: ${data}\n\n`));
 }
