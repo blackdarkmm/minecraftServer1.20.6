@@ -137,6 +137,7 @@ jobs:
           screen -L -dmS minecraft java -Xmx6G -Xms6G -jar fabric-server-launch.jar nogui
 
           # 啟動 API 服務
+          cd minecraft-log-stream
           node api.js &
           
           # 等待 10 秒讓 server 和 API 起來
