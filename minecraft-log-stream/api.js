@@ -56,8 +56,3 @@ const port = 3000;
 app.listen(port, () => {
   console.log(`Minecraft API listening on port ${port}`);
 });
-
-const port = 3000;
-app.listen(port, () => {
-  console.log(`Minecraft API listening on port ${port}`);
-});
