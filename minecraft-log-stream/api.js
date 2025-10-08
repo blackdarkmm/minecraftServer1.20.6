@@ -30,6 +30,11 @@ app.get("/logs", (req, res) => {
   res.json({ logs: lastLogs });
 });
 
+// 健康檢查路由（API 起來回傳 200 OK）
+app.get("/health", (req, res) => {
+  res.status(200).send("OK");
+});
+
 // 立即發送指令
 app.post("/command", (req, res) => {
   const { cmd, token } = req.body;
