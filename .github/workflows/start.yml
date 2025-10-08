@@ -140,13 +140,18 @@ jobs:
           cd minecraft-log-stream
           node api.js &
           
-          # 等待 10 秒讓 server 和 API 起來
-          sleep 10
-          
-          # 保持 runner 運行 (或自行控制停止)
-          tail -f /dev/null
-          
-          sleep 30
+          for i in {1..30}; do
+            if curl --silent --head --fail http://localhost:3000 >/dev/null; then
+              echo "API is up!"
+              break
+            else
+              echo "Waiting for API..."
+              sleep 1
+            fi
+            done
+
+            # 繼續保持 runner 運行
+            wait
 
       - name: 啟動 Log Viewer Server
         run: |
