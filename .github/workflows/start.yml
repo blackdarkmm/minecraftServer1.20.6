@@ -40,9 +40,77 @@ jobs:
         run: sudo apt-get install -y screen
 
       - name: 安裝 Node.js
-        uses: actions/setup-node@v3
+        uses: actions/setup-node@v4
         with:
-          node-version: 18
+          node-version: 20
+
+      - name: 初始化 Node.js 並安裝 Express
+        run: |
+          mkdir log-viewer
+          cd log-viewer
+          npm init -y
+          npm install express
+
+          # 建立 server.js 檔案
+          cat << 'EOF' > server.js
+          const express = require('express');
+          const fs = require('fs');
+          const readline = require('readline');
+          const path = require('path');
+
+          const app = express();
+          const PORT = 3000;
+          const logFilePath = path.resolve('./screenlog.0');
+          let clients = [];
+
+          app.get('/logs/stream', (req, res) => {
+            res.writeHead(200, {
+              'Content-Type': 'text/event-stream',
+              'Cache-Control': 'no-cache',
+              Connection: 'keep-alive',
+            });
+            res.write('\n');
+            clients.push(res);
+            req.on('close', () => {
+              clients = clients.filter(c => c !== res);
+            });
+          });
+
+          function sendToClients(data) {
+            clients.forEach(res => res.write(`data: ${data}\\n\\n`));
+          }
+
+          function watchScreenLog() {
+            let size = 0;
+            fs.stat(logFilePath, (err, stats) => {
+              if (err) {
+                console.error('❌ 找不到 screenlog.0:', err.message);
+                return;
+              }
+              size = stats.size;
+              fs.watch(logFilePath, (eventType) => {
+                if (eventType !== 'change') return;
+                fs.stat(logFilePath, (err, stats) => {
+                  if (err || stats.size <= size) return;
+                  const stream = fs.createReadStream(logFilePath, { start: size, end: stats.size });
+                  const rl = readline.createInterface({ input: stream });
+                  rl.on('line', (line) => sendToClients(line));
+                  rl.on('close', () => (size = stats.size));
+                });
+              });
+            });
+          }
+
+          app.use(express.static('public'));
+
+          app.listen(PORT, () => {
+            console.log(\`✅ 伺服器啟動於 http://localhost:\${PORT}\`);
+            watchScreenLog();
+          });
+          EOF
+
+          mkdir public
+          echo '<html><body><h1>Log viewer</h1></body></html>' > public/index.html
 
       - name: 下載 world.zip（從 Google Drive）
         env:
@@ -126,26 +194,9 @@ jobs:
           sudo cat /var/lib/zerotier-one/identity.secret
           echo "=========== END identity.secret ==========="
 
-      - name: 安裝 SSH server
-        run: sudo apt-get update && sudo apt-get install -y openssh-server
-
-      - name: 設定 SSH server
-        run: |
-          sudo mkdir -p /var/run/sshd
-          echo 'PermitRootLogin no' | sudo tee -a /etc/ssh/sshd_config
-          echo 'PasswordAuthentication no' | sudo tee -a /etc/ssh/sshd_config
-          # 允許你的用戶登入
-          sudo useradd -m minecraft
-          sudo mkdir -p /home/minecraft/.ssh
-          echo "${{ secrets.SSH_PUBLIC_KEY }}" | sudo tee /home/minecraft/.ssh/authorized_keys
-          sudo chown -R minecraft:minecraft /home/minecraft/.ssh
-          sudo chmod 700 /home/minecraft/.ssh
-          sudo chmod 600 /home/minecraft/.ssh/authorized_keys
-          sudo service ssh start
-
       - name: 啟動 Fabric Server（使用 screen）
         run: |
-          screen -dmS minecraft java -Xmx6G -Xms6G -jar fabric-server-launch.jar nogui
+          screen -L -dmS minecraft java -Xmx6G -Xms6G -jar fabric-server-launch.jar nogui
 
           # 啟動 API 服務
           node api.js &
@@ -157,6 +208,12 @@ jobs:
           tail -f /dev/null
           
           sleep 30
+
+      - name: 啟動 Log Viewer Server
+        run: |
+          cd log-viewer
+          nohup node server.js > /dev/null 2>&1 &
+          echo "Node server 已啟動於背景"
 
       - name: Minecraft Server 運行中（最多 5 小時或手動關閉）
         run: |
