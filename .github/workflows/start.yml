@@ -141,7 +141,7 @@ jobs:
           node api.js &
           
           for i in {1..30}; do
-            if curl --silent --head --fail http://localhost:3000 >/dev/null; then
+            if curl --silent --fail http://localhost:3000/health >/dev/null; then
               echo "API is up!"
               break
             else
