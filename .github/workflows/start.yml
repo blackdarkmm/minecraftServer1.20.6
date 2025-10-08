@@ -151,9 +151,6 @@ jobs:
             fi
           done
 
-            # 繼續保持 runner 運行
-            wait
-
       - name: 啟動 Log Viewer Server
         run: |
           cd log-viewer
