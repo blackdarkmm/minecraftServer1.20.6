@@ -138,8 +138,9 @@ jobs:
 
           # 啟動 API 服務
           cd minecraft-log-stream
-          node api.js &
-          
+          nohup node api.js > api.log 2>&1 &
+
+          # 等待 API 健康檢查成功
           for i in {1..30}; do
             if curl --silent --fail http://localhost:3000/health >/dev/null; then
               echo "API is up!"
@@ -148,7 +149,7 @@ jobs:
               echo "Waiting for API..."
               sleep 1
             fi
-            done
+          done
 
             # 繼續保持 runner 運行
             wait
