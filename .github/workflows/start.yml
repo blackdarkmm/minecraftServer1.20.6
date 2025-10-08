@@ -157,6 +157,17 @@ jobs:
           nohup node server.js > /dev/null 2>&1 &
           echo "Node server 已啟動於背景"
 
+              # 健康檢查循環：等候 API 回應成功為止
+          for i in {1..30}; do
+            if curl --silent --fail http://localhost:3000/health >/dev/null; then
+              echo "API is up!"
+              break
+            else
+              echo "Waiting for API..."
+              sleep 1
+            fi
+          done
+
       - name: Minecraft Server 運行中（最多 5 小時或手動關閉）
         run: |
           echo "伺服器啟動成功，最多運行 5 小時。"
