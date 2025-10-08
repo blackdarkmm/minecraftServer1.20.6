@@ -12,6 +12,7 @@ jobs:
     env:
       RCON_PASSWORD: ${{ secrets.RCON_PASSWORD }}
       RCON_PORT: ${{ secrets.RCON_PORT }}
+      API_TOKEN: ${{ secrets.API_TOKEN }}
 
     steps:
       - name: 檢出 repo 檔案
@@ -37,6 +38,11 @@ jobs:
 
       - name: 安裝 screen
         run: sudo apt-get install -y screen
+
+      - name: 安裝 Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: 18
 
       - name: 下載 world.zip（從 Google Drive）
         env:
@@ -140,6 +146,16 @@ jobs:
       - name: 啟動 Fabric Server（使用 screen）
         run: |
           screen -dmS minecraft java -Xmx6G -Xms6G -jar fabric-server-launch.jar nogui
+
+          # 啟動 API 服務
+          node api.js &
+          
+          # 等待 10 秒讓 server 和 API 起來
+          sleep 10
+          
+          # 保持 runner 運行 (或自行控制停止)
+          tail -f /dev/null
+          
           sleep 30
 
       - name: Minecraft Server 運行中（最多 5 小時或手動關閉）
