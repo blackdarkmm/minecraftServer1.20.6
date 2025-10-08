@@ -50,9 +50,6 @@ jobs:
           npm init -y
           npm install express
 
-          mkdir public
-          echo '<html><body><h1>Log viewer</h1></body></html>' > public/index.html
-
       - name: 下載 world.zip（從 Google Drive）
         env:
           FILE_ID: ${{ secrets.GDRIVE_FILE_ID }}
