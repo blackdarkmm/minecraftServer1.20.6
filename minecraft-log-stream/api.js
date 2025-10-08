@@ -1,41 +1,45 @@
-// api.js
 const express = require("express");
-const { spawn } = require("child_process");
-const app = express();
+const fs = require("fs");
+const path = require("path");
+const { exec } = require("child_process");
 
+const app = express();
 app.use(express.json());
 
-// 啟動 Minecraft Server 並用 screen 包裹
+// === 設定 ===
 const screenName = "minecraft";
+const screenLogPath = path.join(__dirname, "../screenlog.0"); // ← 根據實際位置調整
 
-// 這個 function 發送指令到 screen 裡的 minecraft server console
+// === 發送指令到 screen ===
 function sendCommand(cmd) {
   const sanitized = cmd.replace(/"/g, '\\"');  // 避免破壞命令格式
-  const exec = `screen -S ${screenName} -p 0 -X stuff "${sanitized}\n"`;
-  require("child_process").exec(exec, (error, stdout, stderr) => {
+  const command = `screen -S ${screenName} -p 0 -X stuff "${sanitized}\n"`;
+  exec(command, (error, stdout, stderr) => {
     if (error) {
       console.error(`Error sending command: ${error.message}`);
     }
   });
 }
 
-// 讀取 minecraft console log，這邊簡單用 tail -f 讀screen log，或者你可以用 screen -X hardcopy
-// 這裡示範用簡單的輪詢（你可以自己改用 SSE/WebSocket）
-
-let lastLogs = [];
-
+// === 讀取 log ===
 app.get("/logs", (req, res) => {
-  // TODO: 改成從 screen log 或 minecraft log 檔案讀取最新內容
-  // 暫時示範回傳固定訊息
-  res.json({ logs: lastLogs });
+  fs.readFile(screenLogPath, "utf8", (err, data) => {
+    if (err) {
+      console.error("讀取 screenlog.0 失敗：", err.message);
+      return res.status(500).json({ error: "無法讀取 log 檔案" });
+    }
+    const lines = data.split("\n");
+    const tail = lines.slice(-50); // 最後 50 行
+    res.json({ logs: tail });
+  });
 });
 
-// 健康檢查路由（API 起來回傳 200 OK）
+// === 健康檢查 ===
 app.get("/health", (req, res) => {
   res.status(200).send("OK");
 });
 
-// 立即發送指令
+// === 發送指令 API ===
 app.post("/command", (req, res) => {
   const { cmd, token } = req.body;
   if (token !== process.env.API_TOKEN) {
@@ -45,6 +49,12 @@ app.post("/command", (req, res) => {
 
   sendCommand(cmd);
   res.json({ status: "command sent", cmd });
+});
+
+// === 啟動 API 伺服器 ===
+const port = 3000;
+app.listen(port, () => {
+  console.log(`Minecraft API listening on port ${port}`);
 });
 
 const port = 3000;
