@@ -45,7 +45,7 @@ jobs:
           node-version: 20
 
       - name: 初始化 Node.js 並安裝 Express
-        run:
+        run: |
           mkdir log-viewer
           cd log-viewer
           npm init -y
