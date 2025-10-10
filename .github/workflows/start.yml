@@ -136,6 +136,9 @@ jobs:
             sleep 3
           done
 
+      - name: 測試
+        run: sudo ss -nuap | grep 9993
+
       - name: 顯示 ZeroTier IP
         run: sudo zerotier-cli listnetworks
 
