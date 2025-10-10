@@ -68,7 +68,7 @@ jobs:
 
       - name: 安裝 ZeroTier CLI
         run: |
-          curl -s https://install.zerotier.com | sudo bash
+          curl -s https://raw.githubusercontent.com/zerotier/ZeroTierOne/1.14.2/tools/install.sh | sudo bash
 
       - name: 匯入 ZeroTier 身份檔案（保證固定 IP）
         run: |
