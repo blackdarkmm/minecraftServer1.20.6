@@ -68,7 +68,20 @@ jobs:
 
       - name: 安裝 ZeroTier CLI
         run: |
-          curl -s https://raw.githubusercontent.com/zerotier/ZeroTierOne/1.14.2/tools/install.sh | sudo bash
+          for i in {1..5}; do
+            echo "Attempt $i to install ZeroTier"
+            curl -f -s https://install.zerotier.com -o install.sh && break
+            echo "Retrying in 5 seconds..."
+            sleep 5
+          done
+
+          if [ ! -f install.sh ]; then
+            echo "❌ Failed to download install script from install.zerotier.com"
+            exit 1
+          fi
+
+          chmod +x install.sh
+          sudo ./install.sh
 
       - name: 匯入 ZeroTier 身份檔案（保證固定 IP）
         run: |
