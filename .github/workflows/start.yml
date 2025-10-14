@@ -184,8 +184,12 @@ jobs:
             fi
           done
 
-      - name: 顯示當前目錄
-        run: pwd
+      - name: 顯示當前目錄與檔案
+        run: |
+          echo "目前目錄："
+          pwd
+          echo "檔案列表："
+          ls -al
 
       - name: Minecraft Server 運行中（最多 5 小時或手動關閉）
         run: |
