@@ -184,6 +184,9 @@ jobs:
             fi
           done
 
+      - name: 顯示當前目錄
+        run: pwd
+
       - name: Minecraft Server 運行中（最多 5 小時或手動關閉）
         run: |
           echo "伺服器啟動成功，最多運行 5 小時。"
