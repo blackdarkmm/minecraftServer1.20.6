@@ -1,0 +1,236 @@
+name: Fabric Server - 雲端世界備份 (ZeroTier VPN)
+
+on:
+  workflow_dispatch:
+  repository_dispatch:
+    types: [fabric-server-cloud-backup-zerotier-vpn]
+
+jobs:
+  minecraft:
+    runs-on: ubuntu-latest
+
+    env:
+      RCON_PASSWORD: ${{ secrets.RCON_PASSWORD }}
+      RCON_PORT: ${{ secrets.RCON_PORT }}
+
+    steps:
+      - name: 檢出 repo 檔案
+        uses: actions/checkout@v4
+
+      - name: 替換 server.properties 中的 RCON 設定
+        run: |
+          sed -i "s|rcon.password=.*|rcon.password=${RCON_PASSWORD}|" server.properties
+          sed -i "s|rcon.port=.*|rcon.port=${RCON_PORT}|" server.properties
+
+
+      - name: 安裝 Java 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+
+      - name: 安裝 Python 和 gdown
+        run: |
+          sudo apt update
+          sudo apt install python3-pip unzip
+          pip install gdown
+
+      - name: 安裝 screen
+        run: sudo apt-get install -y screen
+
+      - name: 下載 world.zip（從 Google Drive）
+        env:
+          FILE_ID: ${{ secrets.GDRIVE_FILE_ID }}
+        run: |
+          echo "從 Google Drive 下載 world.zip..."
+          gdown --id $FILE_ID -O world.zip
+
+      - name: 解壓縮世界檔案（如有）
+        run: |
+          if [ -f world.zip ]; then
+            echo "Found world.zip, attempting unzip..."
+            unzip world.zip
+          else
+            echo "No world.zip found, skipping unzip."
+          fi
+
+      - name: 安裝 ZeroTier CLI
+        run: |
+          for i in {1..5}; do
+            echo "Attempt $i to install ZeroTier"
+            curl -f -s https://install.zerotier.com -o install.sh && break
+            echo "Retrying in 5 seconds..."
+            sleep 5
+          done
+
+          if [ ! -f install.sh ]; then
+            echo "❌ Failed to download install script from install.zerotier.com"
+            exit 1
+          fi
+
+          chmod +x install.sh
+          sudo ./install.sh
+
+      - name: 匯入 ZeroTier 身份檔案（保證固定 IP）
+        run: |
+          sudo systemctl stop zerotier-one
+
+          echo "${{ secrets.ZT_IDENTITY_SECRET }}" | sudo tee /var/lib/zerotier-one/identity.secret > /dev/null
+          sudo chmod 600 /var/lib/zerotier-one/identity.secret
+
+          sudo systemctl start zerotier-one
+
+          echo "等待 identity.public 生成..."
+          for i in {1..10}; do
+            if [ -f /var/lib/zerotier-one/identity.public ]; then
+              echo "✅ identity.public 已生成"
+              break
+            fi
+            echo "⏳ identity.public 尚未出現，等待 1 秒..."
+            sleep 1
+          done
+
+          echo "目前身份："
+          sudo cat /var/lib/zerotier-one/identity.public || echo "⚠️ 無法讀取身份"
+
+      - name: 加入 ZeroTier 網路
+        env:
+          ZT_NETWORK_ID: ${{ secrets.ZEROTIER_NETWORK_ID }}
+        run: |
+          echo "✅ 檢查 ZeroTier 服務是否啟動..."
+          for i in {1..10}; do
+            if sudo zerotier-cli info &>/dev/null; then
+              echo "✅ ZeroTier 服務已啟動"
+              break
+            fi
+            echo "⏳ 等待 ZeroTier 服務啟動... ($i/10)"
+            sleep 2
+          done
+
+          echo "🚀 嘗試加入 ZeroTier 網路：$ZT_NETWORK_ID"
+          sudo zerotier-cli join $ZT_NETWORK_ID || {
+            echo "❌ 加入 ZeroTier 網路失敗"
+            exit 1
+          }
+
+          echo "🕓 等待 ZeroTier 成功連線..."
+          for i in {1..20}; do
+            STATUS=$(sudo zerotier-cli listnetworks | grep $ZT_NETWORK_ID | awk '{print $5}')
+            echo "目前狀態：$STATUS"
+            if [[ "$STATUS" == "OK" ]]; then
+              echo "✅ 已成功加入 ZeroTier 網路"
+              break
+            fi
+            sleep 3
+          done
+
+      - name: 測試
+        run: sudo ss -nuap | grep 9993
+
+      - name: 顯示 ZeroTier IP
+        run: sudo zerotier-cli listnetworks
+
+      - name: 顯示 ZeroTier 身份檔案（只用一次）
+        run: |
+          echo "========== BEGIN identity.secret =========="
+          sudo cat /var/lib/zerotier-one/identity.secret
+          echo "=========== END identity.secret ==========="
+
+      - name: 啟動 Fabric Server（使用 screen）
+        run: |
+          screen -L -dmS minecraft java -Xmx6G -Xms6G -jar fabric-server-launch.jar nogui
+
+          # 啟動 API 服務
+          cd minecraft-log-stream
+          nohup node api.js > api.log 2>&1 &
+
+          # 等待 API 健康檢查成功
+          for i in {1..30}; do
+            if curl --silent --fail http://localhost:3000/health >/dev/null; then
+              echo "API is up!"
+              break
+            else
+              echo "Waiting for API..."
+              sleep 1
+            fi
+          done
+
+      - name: 啟動 Log Viewer Server
+        run: |
+          cd minecraft-log-stream
+          nohup node server.js > /dev/null 2>&1 &
+          echo "Node server 已啟動於背景"
+
+              # 健康檢查循環：等候 API 回應成功為止
+          for i in {1..30}; do
+            if curl --silent --fail http://localhost:3000/health >/dev/null; then
+              echo "API is up!"
+              break
+            else
+              echo "Waiting for API..."
+              sleep 1
+            fi
+          done
+
+      - name: 顯示當前目錄與檔案
+        run: |
+          echo "目前目錄："
+          pwd
+          echo "檔案列表："
+          ls -al
+
+      - name: Minecraft Server 運行中（最多 5 小時或手動關閉）
+        run: |
+          echo "伺服器啟動成功，最多運行 5 小時。"
+          start_time=$(date +%s)
+          timeout=$((5 * 60 * 60)) # 5 小時
+          while screen -list | grep -q "minecraft"; do
+            now=$(date +%s)
+            elapsed=$((now - start_time))
+            if [ $elapsed -ge $timeout ]; then
+              echo "已達 5 小時，準備自動關閉伺服器..."
+              break
+            fi
+            sleep 10
+          done
+          echo "伺服器已關閉或到時，繼續下一步..."
+
+      - name: 優雅關閉 Minecraft 伺服器（如果還活著）
+        run: |
+          if screen -list | grep -q "minecraft"; then
+            echo "伺服器仍在運行，執行 stop 指令..."
+            screen -S minecraft -p 0 -X stuff "save-all flush$(printf \\r)"
+            screen -S minecraft -p 0 -X stuff "stop$(printf \\r)"
+            sleep 15
+          else
+            echo "伺服器已關閉，無需再次 stop。"
+          fi
+      - name: 壓縮世界
+        run: zip -r world.zip world
+
+      - name: 安裝 rclone
+        run: |
+          curl https://rclone.org/install.sh | sudo bash
+
+      - name: 寫入 rclone 設定檔（base64）
+        run: |
+          mkdir -p ~/.config/rclone
+          echo "${{ secrets.RCLONE_CONFIG_BASE64 }}" | base64 -d > ~/.config/rclone/rclone.conf
+
+      - name: 上傳 world.zip 到 Google Drive
+        run: |
+          echo "上傳 world.zip 到 Google Drive..."
+          rclone -vv copy world.zip gdrive:minecraft_world \
+            --drive-chunk-size 64M \
+            --transfers=4 \
+            --retries=10 \
+            --low-level-retries=20 \
+            --progress
+
+      # 最後一個 step 觸發自己重新執行
+      - name: 觸發下一次執行
+        uses: peter-evans/repository-dispatch@v2
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}       # ✅ 內建 token，有觸發本 repo 的權限
+          repository: ${{ github.repository }}      # ✅ 自己的 repo
+          event-type: fabric-server-cloud-backup-zerotier-vpn
