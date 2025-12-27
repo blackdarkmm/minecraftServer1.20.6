@@ -109,35 +109,29 @@ jobs:
         env:
           ZT_NETWORK_ID: ${{ secrets.ZEROTIER_NETWORK_ID }}
         run: |
-          # 1. 確保服務徹底關閉
-          sudo pkill -9 zerotier-one || true
-          
-          # 2. 手動以背景模式啟動 zerotier-one 守護進程
-          # -d 參數代表以 daemon 模式運行
-          sudo zerotier-one -d
-
-          echo "🚀 等待 ZeroTier 守護進程初始化..."
-          for i in {1..15}; do
+          echo "✅ 檢查 ZeroTier 服務是否啟動..."
+          for i in {1..10}; do
             if sudo zerotier-cli info &>/dev/null; then
-              echo "✅ ZeroTier 服務已手動啟動成功"
+              echo "✅ ZeroTier 服務已啟動"
               break
             fi
-            [ $i -eq 15 ] && { echo "❌ 服務無法啟動"; exit 1; }
+            echo "⏳ 等待 ZeroTier 服務啟動... ($i/10)"
             sleep 2
           done
 
-          # 3. 執行加入指令
           echo "🚀 嘗試加入 ZeroTier 網路：$ZT_NETWORK_ID"
-          sudo zerotier-cli join $ZT_NETWORK_ID
+          sudo zerotier-cli join $ZT_NETWORK_ID || {
+            echo "❌ 加入 ZeroTier 網路失敗"
+            exit 1
+          }
 
-          # 4. 等待連線並檢查 IP
-          echo "🕓 等待網路狀態 OK..."
+          echo "🕓 等待 ZeroTier 成功連線..."
           for i in {1..20}; do
             STATUS=$(sudo zerotier-cli listnetworks | grep $ZT_NETWORK_ID | awk '{print $5}')
             echo "目前狀態：$STATUS"
             if [[ "$STATUS" == "OK" ]]; then
-              echo "✅ 已成功加入網路"
-              ip addr show | grep zt && break
+              echo "✅ 已成功加入 ZeroTier 網路"
+              break
             fi
             sleep 3
           done
